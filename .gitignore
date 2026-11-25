@@ -1,0 +1,24 @@
+# local environment
+.env
+.env.local
+*.usersecrets
+
+# .NET build & IDE artifacts
+bin/
+obj/
+.vs/
+*.user
+*.suo
+TestResults/
+
+# Angular / Node artifacts
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+
+# OS & Editor noise
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
