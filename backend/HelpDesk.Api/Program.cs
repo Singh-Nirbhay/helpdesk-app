@@ -1,4 +1,7 @@
 using Scalar.AspNetCore;
+using HelpDesk.Api.Data;
+using Microsoft.EntityFrameworkCore;
+using HelpDesk.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +20,17 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
+
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException(
+        "DefaultConnection connection string is missing");
+builder.Services.AddDbContext<HelpDeskDbContext>(option =>
+{
+    option.UseSqlServer(connectionString);
+});
+
+builder.Services.AddScoped<ILookupService, LookupService>();
 
 var app = builder.Build();
 
