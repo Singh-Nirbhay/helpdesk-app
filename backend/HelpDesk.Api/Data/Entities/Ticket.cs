@@ -22,8 +22,10 @@ public class Ticket
     public TicketStatus Status { get; set; } = TicketStatus.New;
 
     public string CreatedById { get; set; } = string.Empty;
+    public ApplicationUser CreatedBy { get; set; } = null!;
 
     public string? AssignedToId {  get; set; }
+    public ApplicationUser? AssignedTo {  get; set; }
 
     public DateTimeOffset CreatedAt { get; set; }
 

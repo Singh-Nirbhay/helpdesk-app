@@ -1,10 +1,11 @@
 ﻿using HelpDesk.Api.Data.Entities;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace HelpDesk.Api.Data
 {
     public class HelpDeskDbContext
-        : DbContext
+        : IdentityDbContext<ApplicationUser>
     {
         public HelpDeskDbContext(
             DbContextOptions<HelpDeskDbContext> options
