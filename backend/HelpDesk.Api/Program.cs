@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Text;
+using HelpDesk.Api.Data.Seed;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -125,6 +126,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
+    await IdentitySeeder.SeedAsync(app.Services);
     app.MapOpenApi();
     app.MapScalarApiReference();
 }
@@ -137,11 +139,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-app.MapGet("/api/auth-test", () =>
-{
-    return Results.Ok("Authentication successful");
-})
-.RequireAuthorization();
 
 app.Run();
