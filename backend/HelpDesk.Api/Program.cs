@@ -2,6 +2,7 @@ using Scalar.AspNetCore;
 using HelpDesk.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using HelpDesk.Api.Services;
+using HelpDesk.Api.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +32,12 @@ builder.Services.AddDbContext<HelpDeskDbContext>(option =>
 });
 
 builder.Services.AddScoped<ILookupService, LookupService>();
+
+//Registering the option pattern
+builder.Services.AddOptions<JwtOptions>()
+    .BindConfiguration(JwtOptions.SectionName)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 
 var app = builder.Build();
 
