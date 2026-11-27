@@ -3,6 +3,13 @@ using HelpDesk.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using HelpDesk.Api.Services;
 using HelpDesk.Api.Configuration;
+using HelpDesk.Api.Data.Entities;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +19,7 @@ builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+//CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AngularClient", policy =>
@@ -31,6 +39,79 @@ builder.Services.AddDbContext<HelpDeskDbContext>(option =>
     option.UseSqlServer(connectionString);
 });
 
+//Implementing identity registration
+
+builder.Services.AddIdentityCore<ApplicationUser>(options =>
+{
+    // Password policy
+    options.Password.RequiredLength = 12;
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = true;
+
+    // Account lockout policy
+    options.Lockout.AllowedForNewUsers = true;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan =
+        TimeSpan.FromMinutes(5);
+
+    // User account rules
+    options.User.RequireUniqueEmail = true;
+})
+.AddRoles<IdentityRole>()
+.AddEntityFrameworkStores<HelpDeskDbContext>()
+.AddSignInManager();
+
+//Service registration
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer();
+
+builder.Services
+    .AddOptions<JwtBearerOptions>(
+        JwtBearerDefaults.AuthenticationScheme)
+    .Configure<IOptions<JwtOptions>>((options, jwtOptions) =>
+    {
+        var jwt = jwtOptions.Value;
+
+        options.IncludeErrorDetails = false;
+        options.SaveToken = false;
+
+        options.TokenValidationParameters =
+            new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidIssuer = jwt.Issuer,
+
+                ValidateAudience = true,
+                ValidAudience = jwt.Audience,
+
+                ValidateLifetime = true,
+                RequireExpirationTime = true,
+
+                ValidateIssuerSigningKey = true,
+                RequireSignedTokens = true,
+
+                IssuerSigningKey = new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(jwt.SigningKey)),
+
+                ValidAlgorithms = new[]
+                {
+                    SecurityAlgorithms.HmacSha256
+                },
+
+                ClockSkew = TimeSpan.FromSeconds(30),
+
+                NameClaimType = ClaimTypes.Name,
+                RoleClaimType = ClaimTypes.Role
+            };
+    });
+
+builder.Services.AddAuthorization();
+
+
+//application service
 builder.Services.AddScoped<ILookupService, LookupService>();
 
 //Registering the option pattern
@@ -52,8 +133,15 @@ app.UseHttpsRedirection();
 
 app.UseCors("AngularClient");
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+app.MapGet("/api/auth-test", () =>
+{
+    return Results.Ok("Authentication successful");
+})
+.RequireAuthorization();
 
 app.Run();
