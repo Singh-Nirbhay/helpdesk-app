@@ -76,6 +76,7 @@ builder.Services
     {
         var jwt = jwtOptions.Value;
 
+        options.MapInboundClaims = true;
         options.IncludeErrorDetails = false;
         options.SaveToken = false;
 
@@ -114,6 +115,7 @@ builder.Services.AddAuthorization();
 
 //application service
 builder.Services.AddScoped<ILookupService, LookupService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 //Registering the option pattern
 builder.Services.AddOptions<JwtOptions>()
