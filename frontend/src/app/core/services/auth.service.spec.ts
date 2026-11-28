@@ -252,4 +252,119 @@ describe('AuthService', () => {
     await expect(firstLogout).resolves.toBe(true);
     await expect(secondLogout).resolves.toBe(true);
   });
+
+  it.each(['login', 'register'] as const)(
+    'does not restore a session from a late %s response after logout',
+    async endpoint => {
+      const router = TestBed.inject(Router);
+
+      vi.spyOn(router, 'navigate')
+        .mockResolvedValue(true);
+
+      const credentials = {
+        email: 'verification@example.com',
+        password: 'TestPassword!2026'
+      };
+
+      const operation = endpoint === 'login'
+        ? service.login(credentials)
+        : service.register({
+          ...credentials,
+          fullName: 'Verification User'
+        });
+
+      const result = firstValueFrom(operation);
+
+      const assertion = expect(result).rejects.toThrow(
+        'Authentication operation is no longer active.'
+      );
+
+      const request = httpTesting.expectOne(
+        `${authUrl}/${endpoint}`
+      );
+
+      await service.logout();
+
+      const response: AuthResponse = {
+        accessToken: 'late-response-token',
+        expiresAtUtc: new Date(
+          Date.now() + 60_000
+        ).toISOString(),
+        email: credentials.email,
+        fullName: 'Verification User',
+        role: 'Customer'
+      };
+
+      request.flush(response);
+
+      await assertion;
+
+      expect(service.session()).toBeNull();
+      expect(service.isAuthenticated()).toBe(false);
+      expect(service.getToken()).toBeNull();
+
+      expect(sessionStorage.getItem(storageKey))
+        .toBeNull();
+    }
+  );
+
+  it('preserves the latest authentication session', async () => {
+    const firstResult = firstValueFrom(
+      service.login({
+        email: 'agent@helpdesk.local',
+        password: 'test-password'
+      })
+    );
+
+    const firstAssertion = expect(firstResult).rejects.toThrow(
+      'Authentication operation is no longer active.'
+    );
+
+    const firstRequest = httpTesting.expectOne(
+      `${authUrl}/login`
+    );
+
+    const secondResult = firstValueFrom(
+      service.login({
+        email: 'manager@helpdesk.local',
+        password: 'test-password'
+      })
+    );
+
+    const secondRequest = httpTesting.expectOne(
+      `${authUrl}/login`
+    );
+
+    const response: AuthResponse = {
+      accessToken: 'manager-test-token',
+      expiresAtUtc: new Date(
+        Date.now() + 60_000
+      ).toISOString(),
+      email: 'manager@helpdesk.local',
+      fullName: 'Demo Manager',
+      role: 'Manager'
+    };
+
+    secondRequest.flush(response);
+
+    await secondResult;
+
+    firstRequest.flush({
+      ...response,
+      accessToken: 'agent-test-token',
+      email: 'agent@helpdesk.local',
+      fullName: 'Demo Agent',
+      role: 'Agent'
+    });
+
+    await firstAssertion;
+
+    expect(service.session()?.email)
+      .toBe('manager@helpdesk.local');
+
+    expect(service.userRole()).toBe('Manager');
+
+    expect(service.getToken())
+      .toBe('manager-test-token');
+  });
 });

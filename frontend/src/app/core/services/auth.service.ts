@@ -8,7 +8,7 @@ import {
 
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap } from 'rxjs';
+import { defer, Observable, tap } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 
@@ -37,6 +37,7 @@ export class AuthService {
 
   private expirationTimer: ReturnType<typeof setTimeout> | undefined;
   private logoutNavigation: Promise<boolean> | null = null;
+  private authOperationVersion = 0;
 
   private readonly _session = signal<AuthResponse | null>(
     this.loadValidSession()
@@ -66,27 +67,21 @@ export class AuthService {
   }
 
   login(payload: LoginRequest): Observable<AuthResponse> {
-    return this.http
-      .post<AuthResponse>(
+    return this.authenticate(
+      this.http.post<AuthResponse>(
         `${this.authUrl}/login`,
         payload
       )
-      .pipe(
-        tap(response => this.setSession(response))
-      );
+    );
   }
 
-  register(
-    payload: RegisterRequest
-  ): Observable<AuthResponse> {
-    return this.http
-      .post<AuthResponse>(
+  register(payload: RegisterRequest): Observable<AuthResponse> {
+    return this.authenticate(
+      this.http.post<AuthResponse>(
         `${this.authUrl}/register`,
         payload
       )
-      .pipe(
-        tap(response => this.setSession(response))
-      );
+    );
   }
 
   getMe(): Observable<CurrentUser> {
@@ -96,6 +91,8 @@ export class AuthService {
   }
 
   logout(): Promise<boolean> {
+
+    ++this.authOperationVersion;
     this.clearSession();
 
     if (this.logoutNavigation) {
@@ -150,6 +147,26 @@ export class AuthService {
 
     this._session.set(session);
     this.scheduleExpiration();
+  }
+
+  private authenticate(
+    request$: Observable<AuthResponse>
+  ): Observable<AuthResponse> {
+    return defer(() => {
+      const operationVersion = ++this.authOperationVersion;
+
+      return request$.pipe(
+        tap(response => {
+          if (operationVersion !== this.authOperationVersion) {
+            throw new Error(
+              'Authentication operation is no longer active.'
+            );
+          }
+
+          this.setSession(response);
+        })
+      );
+    });
   }
 
   private createSessionSnapshot(
