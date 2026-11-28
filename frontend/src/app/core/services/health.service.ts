@@ -4,7 +4,7 @@ import { environment } from '../../../environments/environment';
 
 export interface HealthResponse {
   status: string;
-  time: string;
+  utcTime: string;
 }
 
 @Injectable({

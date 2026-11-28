@@ -5,6 +5,7 @@ import {
   HealthResponse
 } from './core/services/health.service';
 
+
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet],
@@ -12,6 +13,7 @@ import {
   styleUrl: './app.scss'
 })
 export class App implements OnInit {
+
 
   private readonly healthService = inject(HealthService);
 
