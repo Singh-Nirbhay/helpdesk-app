@@ -63,7 +63,7 @@ public class AuthController : ControllerBase
 
     [HttpGet("me")]
     [Authorize]
-    public IActionResult Me()
+    public ActionResult<CurrentUserDto> Me()
     {
         var id = User.FindFirstValue(
             ClaimTypes.NameIdentifier);
@@ -79,11 +79,8 @@ public class AuthController : ControllerBase
             return Unauthorized();
         }
 
-        return Ok(new
-        {
-            id,
-            email,
-            role
-        });
+        return Ok(new CurrentUserDto(id, email, role));
+
+        
     }
 }

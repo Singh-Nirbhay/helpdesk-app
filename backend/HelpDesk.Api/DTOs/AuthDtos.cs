@@ -35,3 +35,9 @@ public record AuthResponseDto(
     string FullName,
     string Role
 );
+
+public record CurrentUserDto(
+    string Id,
+    string Email,
+    string Role
+);
