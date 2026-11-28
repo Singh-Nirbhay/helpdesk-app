@@ -36,6 +36,7 @@ export class AuthService {
   private readonly authUrl = `${environment.apiUrl}/auth`;
 
   private expirationTimer: ReturnType<typeof setTimeout> | undefined;
+  private logoutNavigation: Promise<boolean> | null = null;
 
   private readonly _session = signal<AuthResponse | null>(
     this.loadValidSession()
@@ -97,9 +98,19 @@ export class AuthService {
   logout(): Promise<boolean> {
     this.clearSession();
 
-    return this.router.navigate(['/login'], {
-      replaceUrl: true
-    });
+    if (this.logoutNavigation) {
+      return this.logoutNavigation;
+    }
+
+    this.logoutNavigation = this.router
+      .navigate(['/login'], {
+        replaceUrl: true
+      })
+      .finally(() => {
+        this.logoutNavigation = null;
+      });
+
+    return this.logoutNavigation;
   }
 
   getToken(): string | null {
@@ -223,7 +234,12 @@ export class AuthService {
       Date.parse(session.expiresAtUtc) - Date.now();
 
     if (!Number.isFinite(remaining) || remaining <= 0) {
-      this.clearSession();
+      void this.logout().catch(() => {
+        console.error(
+          'Unable to navigate to login after session expiration.'
+        );
+      });
+
       return;
     }
 

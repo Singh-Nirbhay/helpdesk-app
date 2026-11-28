@@ -1,0 +1,62 @@
+<section class="dashboard">
+
+  <header class="dashboard-header">
+    <h1>Dashboard</h1>
+    <p>Welcome to the HelpDesk application.</p>
+  </header>
+
+  @let result = state();
+
+  @if (result.status === 'loading') {
+
+  <div class="status-panel" role="status">
+    Verifying your account information...
+  </div>
+
+  } @else if (result.status === 'error') {
+
+  <div class="error-panel" role="alert">
+    {{ result.message }}
+  </div>
+
+  } @else if (result.status === 'success') {
+
+  <section class="identity-card"
+           aria-labelledby="identity-heading">
+
+    <h2 id="identity-heading">
+      Authenticated account
+    </h2>
+
+    <p class="identity-description">
+      Identity retrieved from the protected API.
+    </p>
+
+    <dl class="identity-details">
+
+      <div>
+        <dt>User ID</dt>
+        <dd>{{ result.user.id }}</dd>
+      </div>
+
+      <div>
+        <dt>Email address</dt>
+        <dd>{{ result.user.email }}</dd>
+      </div>
+
+      <div>
+        <dt>Role</dt>
+        <dd>
+          <span class="role-badge">
+            {{ result.user.role }}
+          </span>
+        </dd>
+      </div>
+
+    </dl>
+
+  </section>
+
+  }
+
+</section>

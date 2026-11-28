@@ -167,4 +167,89 @@ describe('AuthService', () => {
       { replaceUrl: true }
     );
   });
+
+  it('clears the session and redirects when the token expires',
+    async () => {
+
+      vi.useFakeTimers();
+
+      try {
+        const router = TestBed.inject(Router);
+
+        const navigate = vi.spyOn(router, 'navigate')
+          .mockResolvedValue(true);
+
+        const payload = {
+          email: 'agent@helpdesk.local',
+          password: 'test-password'
+        };
+
+        const response: AuthResponse = {
+          accessToken: 'test-token',
+          expiresAtUtc: new Date(
+            Date.now() + 1000
+          ).toISOString(),
+          email: payload.email,
+          fullName: 'Demo Agent',
+          role: 'Agent'
+        };
+
+        const result = firstValueFrom(
+          service.login(payload)
+        );
+
+        httpTesting.expectOne(`${authUrl}/login`)
+          .flush(response);
+
+        await result;
+
+        expect(service.isAuthenticated()).toBe(true);
+
+        await vi.advanceTimersByTimeAsync(1000);
+
+        expect(service.session()).toBeNull();
+        expect(service.isAuthenticated()).toBe(false);
+        expect(service.getToken()).toBeNull();
+
+        expect(sessionStorage.getItem(storageKey))
+          .toBeNull();
+
+        expect(navigate).toHaveBeenCalledWith(
+          ['/login'],
+          { replaceUrl: true }
+        );
+
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+  );
+
+  it('reuses an in-progress logout navigation', async () => {
+
+    const router = TestBed.inject(Router);
+
+    let completeNavigation!: (value: boolean) => void;
+
+    const pendingNavigation = new Promise<boolean>(
+      resolve => {
+        completeNavigation = resolve;
+      }
+    );
+
+    const navigate = vi.spyOn(router, 'navigate')
+      .mockReturnValue(pendingNavigation);
+
+    const firstLogout = service.logout();
+    const secondLogout = service.logout();
+
+    expect(firstLogout).toBe(secondLogout);
+
+    expect(navigate).toHaveBeenCalledTimes(1);
+
+    completeNavigation(true);
+
+    await expect(firstLogout).resolves.toBe(true);
+    await expect(secondLogout).resolves.toBe(true);
+  });
 });

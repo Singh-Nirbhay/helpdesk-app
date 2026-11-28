@@ -1,19 +1,58 @@
-<h1>HelpDesk Application</h1>
+<div class="app-shell">
 
-@if (health(); as result) {
+  <header class="app-header">
 
-<p>Backend Status: {{ result.status }}</p>
-<p>Server Time: {{ result.utcTime }}</p>
+    <a routerLink="/dashboard" class="app-brand">
+      HelpDesk Application
+    </a>
 
+    @if (authService.isAuthenticated()) {
 
-} @else if (error()) {
+    @if (authService.session(); as session) {
 
-<p>{{ error() }}</p>
+    <div class="account-section">
 
-} @else {
+      <div class="account-details">
+        <span class="account-name">
+          {{ session.fullName }}
+        </span>
 
-<p>Connecting to backend...</p>
+        <span class="account-role">
+          {{ session.role }}
+        </span>
+      </div>
 
-}
+      <button type="button"
+              class="logout-button"
+              (click)="logout()">
+        Logout
+      </button>
 
-<router-outlet />
+    </div>
+
+    }
+
+    } @else {
+
+    <a routerLink="/login" class="login-link">
+      Sign in
+    </a>
+
+    }
+
+  </header>
+
+  @if (!authService.isAuthenticated()) {
+  @if (logoutError(); as message) {
+  <div class="shell-error" role="alert">
+    {{ message }}
+    <a routerLink="/login">Open sign-in page</a>
+  </div>
+  }
+  }
+
+  <main class="app-content">
+    <router-outlet />
+  </main>
+
+</div>

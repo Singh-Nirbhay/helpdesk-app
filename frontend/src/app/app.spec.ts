@@ -1,68 +1,192 @@
-import { TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { computed, signal } from '@angular/core';
 
 import {
-  HttpTestingController,
-  provideHttpClientTesting
-} from '@angular/common/http/testing';
+  ComponentFixture,
+  TestBed
+} from '@angular/core/testing';
 
 import { provideRouter } from '@angular/router';
 
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi
+} from 'vitest';
+
 import { App } from './app';
-import { environment } from '../environments/environment';
+
+import { AuthService } from './core/services/auth.service';
+
+import type {
+  AuthResponse
+} from './core/models/auth.models';
 
 describe('App', () => {
-  let httpTesting: HttpTestingController;
 
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
+  let fixture: ComponentFixture<App>;
+
+  const session = signal<AuthResponse | null>(null);
+
+  const demoSession: AuthResponse = {
+    accessToken: 'test-token',
+    expiresAtUtc: '2099-01-01T00:00:00Z',
+    email: 'agent@helpdesk.local',
+    fullName: 'Demo Agent',
+    role: 'Agent'
+  };
+
+  const authMock = {
+    session: session.asReadonly(),
+
+    isAuthenticated: computed(() =>
+      session() !== null
+    ),
+
+    logout: vi.fn<AuthService['logout']>()
+  };
+
+  beforeEach(() => {
+    session.set(null);
+
+    authMock.logout.mockReset();
+
+    authMock.logout.mockImplementation(async () => {
+      session.set(null);
+      return true;
+    });
+
+    TestBed.configureTestingModule({
       imports: [App],
+
       providers: [
         provideRouter([]),
-        provideHttpClient(),
-        provideHttpClientTesting()
+
+        {
+          provide: AuthService,
+          useValue: authMock
+        }
       ]
-    }).compileComponents();
-
-    httpTesting = TestBed.inject(HttpTestingController);
-  });
-
-  afterEach(() => {
-    httpTesting.verify();
-  });
-
-  function mockHealthResponse(): void {
-    const request = httpTesting.expectOne({
-      method: 'GET',
-      url: `${environment.apiUrl}/Health`
     });
 
-    request.flush({
-      status: 'Healthy',
-      timestamp: '2026-11-28T12:00:00Z'
-    });
+    fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+  });
+
+  function getElement(): HTMLElement {
+    return fixture.nativeElement as HTMLElement;
   }
 
-  it('should create the app', () => {
-    const fixture = TestBed.createComponent(App);
-
-    fixture.detectChanges();
-    mockHealthResponse();
-
+  it('creates the application shell', () => {
     expect(fixture.componentInstance).toBeTruthy();
+
+    expect(
+      getElement().querySelector('.app-brand')
+        ?.textContent
+    ).toContain('HelpDesk Application');
+
+    expect(
+      getElement().querySelector('router-outlet')
+    ).not.toBeNull();
   });
 
-  it('should render the application title', async () => {
-    const fixture = TestBed.createComponent(App);
+  it('does not display account controls for guests', () => {
+    expect(
+      getElement().querySelector('.account-details')
+    ).toBeNull();
 
+    expect(
+      getElement().querySelector('.logout-button')
+    ).toBeNull();
+
+    expect(
+      getElement().querySelector('.login-link')
+    ).not.toBeNull();
+  });
+
+  it('displays the authenticated name and role', () => {
+    session.set(demoSession);
     fixture.detectChanges();
-    mockHealthResponse();
 
-    await fixture.whenStable();
+    expect(
+      getElement().querySelector('.account-name')
+        ?.textContent
+    ).toContain('Demo Agent');
 
-    const compiled = fixture.nativeElement as HTMLElement;
+    expect(
+      getElement().querySelector('.account-role')
+        ?.textContent
+    ).toContain('Agent');
 
-    expect(compiled.querySelector('h1')?.textContent)
-      .toContain('HelpDesk Application');
+    expect(
+      getElement().querySelector('.logout-button')
+    ).not.toBeNull();
   });
+
+  it('logs out and removes authenticated account controls',
+    async () => {
+
+      session.set(demoSession);
+      fixture.detectChanges();
+
+      const button = getElement()
+        .querySelector<HTMLButtonElement>(
+          '.logout-button'
+        )!;
+
+      button.click();
+
+      expect(authMock.logout)
+        .toHaveBeenCalledTimes(1);
+
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+
+        expect(
+          getElement().querySelector('.logout-button')
+        ).toBeNull();
+
+        expect(
+          getElement().querySelector('.account-name')
+        ).toBeNull();
+      });
+    }
+  );
+
+  it('provides a sign-in link when logout navigation fails',
+    async () => {
+
+      session.set(demoSession);
+
+      authMock.logout.mockImplementationOnce(async () => {
+        session.set(null);
+        throw new Error('Navigation failed');
+      });
+
+      fixture.detectChanges();
+
+      getElement()
+        .querySelector<HTMLButtonElement>(
+          '.logout-button'
+        )!
+        .click();
+
+      await vi.waitFor(() => {
+        fixture.detectChanges();
+
+        const alert = getElement()
+          .querySelector('[role="alert"]');
+
+        expect(alert).not.toBeNull();
+
+        expect(alert?.textContent)
+          .toContain('Signed out.');
+
+        expect(alert?.querySelector('a'))
+          .not.toBeNull();
+      });
+    }
+  );
+
 });
