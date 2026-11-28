@@ -1,32 +1,45 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
 import {
-  HealthService,
-  HealthResponse
-} from './core/services/health.service';
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal
+} from '@angular/core';
+
+import { RouterLink, RouterOutlet } from '@angular/router';
+
+import { AuthService } from './core/services/auth.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  standalone: true,
+  imports: [RouterOutlet, RouterLink],
   templateUrl: './app.html',
-  styleUrl: './app.scss'
+  styleUrl: './app.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class App implements OnInit {
+export class App {
 
-  private readonly healthService = inject(HealthService);
+  protected readonly authService = inject(AuthService);
 
-  health = signal<HealthResponse | null>(null);
-  error = signal<string | null>(null);
+  protected readonly logoutError = signal<string | null>(null);
 
-  ngOnInit(): void {
-    this.healthService.getHealth().subscribe({
-      next: (response) => {
-        this.health.set(response);
-      },
-      error: (err) => {
-        console.error(err);
-        this.error.set('Unable to connect to the backend');
+  protected async logout(): Promise<void> {
+    this.logoutError.set(null);
+
+
+
+    try {
+      const navigated = await this.authService.logout();
+
+      if (!navigated) {
+        this.logoutError.set(
+          'Signed out. Please open the sign-in page.'
+        );
       }
-    });
+    } catch {
+      this.logoutError.set(
+        'Signed out. Please open the sign-in page.'
+      );
+    }
   }
 }

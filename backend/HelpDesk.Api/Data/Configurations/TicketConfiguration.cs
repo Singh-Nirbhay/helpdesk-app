@@ -48,7 +48,7 @@ public class TicketConfiguration
 
         builder.HasIndex(t => t.AssignedToId);
 
-    // Relationships
+    // Lookup Relationships
 
         builder.HasOne(t => t.Category)
             .WithMany()
@@ -60,7 +60,17 @@ public class TicketConfiguration
             .HasForeignKey(t => t.PriorityId)
             .OnDelete(deleteBehavior: DeleteBehavior.Restrict);
 
+        // User Relationship
 
+        builder.HasOne(t => t.CreatedBy)
+            .WithMany()
+            .HasForeignKey(t => t.CreatedById)
+            .OnDelete(deleteBehavior: DeleteBehavior.Restrict);
+
+        builder.HasOne(t => t.AssignedTo)
+            .WithMany()
+            .HasForeignKey(t => t.AssignedToId)
+            .OnDelete(deleteBehavior: DeleteBehavior.Restrict);
 
     }
 }
